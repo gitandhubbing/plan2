@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Professional Three-Plan Financial Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f1f5f9; /* slate-100 */
+        }
+        .metric-card {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            border: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .chart-container {
+            background-color: white;
+            border-radius: 0.75rem;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07);
+            position: relative; 
+            height: 350px;
+            border: 1px solid #e2e8f0; /* slate-200 */
+        }
+        .nav-link {
+            padding: 0.5rem 0.75rem;
+            border-radius: 0.5rem;
+            font-weight: 600;
+            cursor: pointer;
+            color: #475569; /* slate-600 */
+            transition: background-color 0.2s, color 0.2s;
+            white-space: nowrap;
+        }
+        .nav-link.active {
+            background-color: #3b82f6; /* blue-600 */
+            color: white;
+        }
+        .nav-link:not(.active):hover {
+            background-color: #e2e8f0; /* slate-200 */
+            color: #1e293b; /* slate-800 */
+        }
+        .hidden-page { display: none; }
+        .timeline-item { position: relative; padding-bottom: 2rem; padding-left: 2.5rem; }
+        .timeline-item:last-child { padding-bottom: 0; }
+        .timeline-item::before { content: ''; position: absolute; left: 0; top: 0.25rem; width: 1.25rem; height: 1.25rem; border-radius: 9999px; background-color: white; }
+        .timeline-item::after { content: ''; position: absolute; left: 0.5rem; top: 1.5rem; bottom: 0; width: 2px; background-color: #e2e8f0; }
+        .timeline-item:last-child::after { display: none; }
+        .timeline-planA .timeline-item::before { border: 4px solid #3b82f6; } 
+        .timeline-planB .timeline-item::before { border: 4px solid #16a34a; }
+        .timeline-planC .timeline-item::before { border: 4px solid #f97316; } 
+        .analysis-section { background-color:white; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.07); border: 1px solid #e2e8f0; }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <header class="bg-white shadow-sm sticky top-0 z-10 border-b border-slate-200">
+        <div class="container mx-auto px-4 sm:px-8 py-4 flex flex-col sm:flex-row justify-between items-center">
+            <h1 class="text-xl md:text-2xl font-extrabold text-slate-900 mb-4 sm:mb-0">Financial Strategy Dashboard</h1>
+            <nav class="flex space-x-1 sm:space-x-2 text-sm md:text-base" id="main-nav">
+                <a class="nav-link active" data-page="planA">Plan A: Aggressive</a>
+                <a class="nav-link" data-page="planB">Plan B: Organic</a>
+                <a class="nav-link" data-page="planC">Plan C: Moderate</a>
+                <a class="nav-link" data-page="comparison">Comparison</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 md:p-8" id="planA"></main>
+    <main class="container mx-auto p-4 md:p-8 hidden-page" id="planB"></main>
+    <main class="container mx-auto p-4 md:p-8 hidden-page" id="planC"></main>
+    <main class="container mx-auto p-4 md:p-8 hidden-page" id="comparison"></main>
+
+    <footer class="text-center my-8 text-slate-500">
+        <p>Financial projections generated for planning purposes. June 27, 2025.</p>
+    </footer>
+
+    <script>
+        // --- DATA DEFINITIONS ---
+        const financialDataA_raw = [{ month: 0, startup: 30000 }, { month: 1, customers_base: 900, marketing_extra_spend: 5000, marketing_extra_cust: 200 }, { month: 2, marketing_extra_spend: 10000, marketing_extra_cust: 400 }, { month: 3, marketing_extra_spend: 5000, marketing_extra_cust: 200 }];
+        const financialDataB_raw = [{ month: 0, startup: 30000 }];
+        const financialDataC_raw = [{ month: 0, startup: 30000 }, { month: 1, customers_base: 900, marketing_extra_spend: 5000, marketing_extra_cust: 200 }, { month: 3, marketing_extra_spend: 5000, marketing_extra_cust: 200 }, { month: 4, marketing_extra_spend: 2500, marketing_extra_cust: 100 }, { month: 5, marketing_extra_spend: 2500, marketing_extra_cust: 100 }];
+
+        // --- GLOBAL VARIABLES ---
+        let processedDataA, processedDataB, processedDataC;
+        let charts = {};
+        const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(value);
+        const formatPercent = (value) => new Intl.NumberFormat('en-US', { style: 'percent', minimumFractionDigits: 1 }).format(value);
+
+        // --- DATA PROCESSING ---
+        function generateFullData(rawData) {
+            const fullData = [rawData[0]];
+            let lastCustomers = 0;
+            for (let i = 1; i <= 36; i++) {
+                const monthInfo = rawData.find(d => d.month === i) || {};
+                if (i === 1) lastCustomers = monthInfo.customers_base || 750;
+                
+                // NEW: Updated tiered organic customer growth logic
+                let organicGrowth;
+                if (lastCustomers > 2700) organicGrowth = 40;
+                else if (lastCustomers > 2100) organicGrowth = 80;
+                else if (lastCustomers > 1500) organicGrowth = 120;
+                else organicGrowth = 150;
+                
+                const customers = lastCustomers + organicGrowth + (monthInfo.marketing_extra_cust || 0);
+                fullData.push({ month: i, customers, marketing_extra_spend: (monthInfo.marketing_extra_spend || 0) });
+                lastCustomers = customers;
+            }
+            return fullData;
+        }
+        
+        function calculateFinancials(data) {
+            let cumulativeProfit = 0;
+            return data.map(d => {
+                let revenue = 0, totalExpenses = 0, netProfit = 0, cogs = 0, pos = 0, marketing = 0, fixedCosts = 0;
+                if (d.month === 0) netProfit = -d.startup;
+                else {
+                    revenue = d.customers * 20;
+                    cogs = revenue * 0.75;
+                    pos = revenue * 0.03;
+                    marketing = 1500 + d.marketing_extra_spend;
+                    fixedCosts = 4800 + 4000 + 1000 + 1000;
+                    totalExpenses = cogs + pos + marketing + fixedCosts;
+                    netProfit = revenue - totalExpenses;
+                }
+                cumulativeProfit += netProfit;
+                const netProfitMargin = revenue > 0 ? netProfit / revenue : 0;
+                return { ...d, revenue, cogs, pos, marketing, fixedCosts, totalExpenses, netProfit, cumulativeProfit, netProfitMargin, marketing_extra_spend: d.marketing_extra_spend || 0 };
+            });
+        }
+        
+        // --- PAGE TEMPLATES ---
+        function getDashboardHTML(planId, title, assumptions, timelineItems, analysisItems) {
+            return `<header class="text-center mb-10"><h2 class="text-3xl font-extrabold text-slate-900">${title}</h2></header>
+                <div class="analysis-section mb-8"><h3 class="text-xl font-bold mb-4">Core Assumptions</h3><div class="text-sm text-slate-600 grid grid-cols-1 md:grid-cols-2 gap-4">${assumptions}</div></div>
+                <section class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <div class="lg:col-span-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+                        <div class="metric-card"><div class="flex items-center"><div class="p-2 bg-green-100 rounded-md mr-4"><svg class="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg></div><div><h3 class="text-base font-semibold text-slate-500">Total Net Profit</h3><p id="${planId}-total-net-profit" class="text-2xl font-bold text-slate-800 mt-1"></p></div></div></div>
+                        <div class="metric-card"><div class="flex items-center"><div class="p-2 bg-red-100 rounded-md mr-4"><svg class="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"/></svg></div><div><h3 class="text-base font-semibold text-slate-500">Max Cash Deficit</h3><p id="${planId}-max-deficit" class="text-2xl font-bold text-slate-800 mt-1"></p></div></div></div>
+                        <div class="metric-card"><div class="flex items-center"><div class="p-2 bg-purple-100 rounded-md mr-4"><svg class="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6"/></svg></div><div><h3 class="text-base font-semibold text-slate-500">3-Year ROI</h3><p id="${planId}-roi" class="text-2xl font-bold text-slate-800 mt-1"></p></div></div></div>
+                        <div class="metric-card"><div class="flex items-center"><div class="p-2 bg-cyan-100 rounded-md mr-4"><svg class="h-6 w-6 text-cyan-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10m0-2.172a4.997 4.997 0 015.657 0m-5.657 0l-2.828-2.828m5.657 0l2.828 2.828m0 0a3 3 0 11-5.657 0"/></svg></div><div><h3 class="text-base font-semibold text-slate-500">Monthly Profitability</h3><p id="${planId}-monthly-profit-month" class="text-2xl font-bold text-slate-800 mt-1"></p></div></div></div>
+                        <div class="metric-card"><div class="flex items-center"><div class="p-2 bg-amber-100 rounded-md mr-4"><svg class="h-6 w-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div><div><h3 class="text-base font-semibold text-slate-500">Cumulative Break-Even</h3><p id="${planId}-break-even-month" class="text-2xl font-bold text-slate-800 mt-1"></p></div></div></div>
+                    </div>
+                    <div class="analysis-section">
+                        <h3 class="text-xl font-bold mb-4 text-slate-800">Key Milestones</h3><div class="timeline-${planId}">${timelineItems}</div>
+                    </div>
+                </section>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">Performance</h3><canvas id="${planId}-financialChart"></canvas></div>
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">Expense Composition</h3><canvas id="${planId}-expenseChart"></canvas></div>
+                </div>
+                <div class="analysis-section mb-8"><h3 class="text-xl font-bold mb-4">In-Depth Analysis</h3><div class="space-y-4">${analysisItems}</div></div>
+                <div class="chart-container mb-8"><h3 class="text-xl font-bold mb-4">Customer Growth</h3><canvas id="${planId}-customerChart"></canvas></div>
+                <section><h3 class="text-2xl font-bold text-center mb-6">Detailed Financial Data</h3><div class="bg-white rounded-lg shadow-sm border border-slate-200"><div class="overflow-x-auto h-96">
+                    <table class="min-w-full divide-y divide-slate-200 text-sm">
+                        <thead class="bg-slate-50 sticky top-0"><tr>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Month</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Customers</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Revenue</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">COGS</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">POS</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Marketing</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Overhead</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Net Profit</th>
+                            <th class="px-4 py-2 text-left font-semibold text-slate-600">Cum. P/L</th>
+                        </tr></thead>
+                        <tbody id="${planId}-financial-table-body"></tbody></table></div></div></section>`;
+        }
+
+        function destroyCharts(chartGroup) {
+            if (chartGroup) Object.values(chartGroup).forEach(c => c?.destroy());
+        }
+
+        function populateDashboard(planId, data) {
+            const metrics = getMetrics(data);
+            document.getElementById(`${planId}-total-net-profit`).textContent = formatCurrency(metrics.netProfit);
+            document.getElementById(`${planId}-roi`).textContent = formatPercent(metrics.roi);
+            document.getElementById(`${planId}-max-deficit`).textContent = formatCurrency(metrics.maxDeficit);
+            document.getElementById(`${planId}-monthly-profit-month`).textContent = `Month ${metrics.monthlyProfitability}`;
+            document.getElementById(`${planId}-break-even-month`).textContent = `Month ${metrics.breakEven}`;
+            const tableBody = document.getElementById(`${planId}-financial-table-body`);
+            tableBody.innerHTML = '';
+            data.slice(1).forEach(d => {
+                tableBody.innerHTML += `<tr class="border-b border-slate-100">
+                    <td class="px-4 py-3 whitespace-nowrap">${d.month}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">${d.customers.toLocaleString()}</td>
+                    <td class="px-4 py-3 whitespace-nowrap">${formatCurrency(d.revenue)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${formatCurrency(d.cogs)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${formatCurrency(d.pos)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${formatCurrency(d.marketing)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-slate-500">${formatCurrency(d.fixedCosts)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap font-semibold ${d.netProfit < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(d.netProfit)}</td>
+                    <td class="px-4 py-3 whitespace-nowrap font-bold ${d.cumulativeProfit < 0 ? 'text-red-600' : 'text-green-600'}">${formatCurrency(d.cumulativeProfit)}</td>
+                </tr>`;
+            });
+        }
+        
+        function renderPlanCharts(planId, data) {
+            destroyCharts(charts[planId]);
+            charts[planId] = {};
+            const chartData = data.slice(1);
+            const labels = chartData.map(d => `M${d.month}`);
+            const chartOptions = (extraOpts = {}) => ({ responsive: true, maintainAspectRatio: false, ...extraOpts });
+
+            charts[planId].financial = new Chart(document.getElementById(`${planId}-financialChart`).getContext('2d'), { type: 'line', data: { labels, datasets: [ { label: 'Revenue', data: chartData.map(d => d.revenue), borderColor: '#3b82f6', fill: false, tension: 0.1 }, { label: 'Net Profit', data: chartData.map(d => d.netProfit), borderColor: '#16a34a', fill: false, tension: 0.1 } ]}, options: chartOptions({ scales: { y: { ticks: { callback: v => formatCurrency(v) }}}})});
+            
+            const totalCogs = chartData.reduce((s, d) => s + d.cogs, 0);
+            const totalMarketing = chartData.reduce((s, d) => s + d.marketing, 0);
+            const totalFixed = chartData.reduce((s, d) => s + d.fixedCosts, 0);
+            const totalPos = chartData.reduce((s, d) => s + d.pos, 0);
+            charts[planId].expense = new Chart(document.getElementById(`${planId}-expenseChart`).getContext('2d'), { type: 'doughnut', data: { labels: ['Inventory (COGS)', 'Marketing', 'Fixed Overhead', 'POS'], datasets: [{ data: [totalCogs, totalMarketing, totalFixed, totalPos], backgroundColor: ['#0ea5e9', '#f97316', '#475569', '#64748b']}] }, options: chartOptions({ plugins: { legend: { position: 'top' } } }) });
+
+            charts[planId].customer = new Chart(document.getElementById(`${planId}-customerChart`).getContext('2d'), { type: 'bar', data: { labels, datasets: [{ label: 'Customers', data: chartData.map(d => d.customers), backgroundColor: '#a855f790' }] }, options: chartOptions({ plugins: { legend: { display: false }} })});
+        }
+        
+        function getMetrics(data) {
+            const netProfit = data.slice(1).reduce((s,d)=>s+d.netProfit,0);
+            const investment = data[0].startup + data.reduce((s, d) => s + (d.marketing_extra_spend || 0), 0);
+            return {
+                netProfit, roi: investment > 0 ? netProfit / investment : 0,
+                maxDeficit: Math.min(0, ...data.map(d=>d.cumulativeProfit)),
+                monthlyProfitability: data.find(d=>d.netProfit>0)?.month || 'N/A',
+                breakEven: data.find(d => d.cumulativeProfit > 0)?.month || 'N/A'
+            };
+        }
+
+        function createPageHTML() {
+            const metricsA = getMetrics(processedDataA), metricsB = getMetrics(processedDataB), metricsC = getMetrics(processedDataC);
+            const assumptionsTemplate = `<div><h5 class="font-bold mb-1">Customer Growth</h5><p>Tiered organic growth from a recurring $1,500/mo spend: <b>150</b> new customers/mo (<1500 total), dropping to <b>120</b> (>1500), <b>80</b> (>2100), and <b>40</b> (>2700).</p></div><div><h5 class="font-bold mb-1">Key Expenses</h5><p>Startup: $30k. COGS: 75% of revenue. POS: 3% of revenue. Fixed Overhead: $10,800/mo.</p></div>`;
+            
+            const assumptionsA = `<div><h5 class="font-bold mb-1">Marketing Strategy</h5><p>An aggressive initial spend of <b>$20,000</b> to acquire <b>800</b> additional customers: <ul class="list-disc list-inside ml-4 mt-1"><li>Month 1: $5k for 200</li><li>Month 2: $10k for 400</li><li>Month 3: $5k for 200</li></ul></p></div>` + assumptionsTemplate;
+            const timelineA = `<div class="timeline-item"><p class="font-semibold">Months 1-3: Aggressive Marketing</p><p class="text-sm text-slate-500">$20k extra spend drives rapid growth.</p></div><div class="timeline-item"><p class="font-semibold">Month ${metricsA.monthlyProfitability}: Monthly Profitability</p></div><div class="timeline-item"><p class="font-semibold">Month ${metricsA.breakEven}: Cumulative Break-Even</p></div>`;
+            const analysisA = `<div><h4 class="font-bold">Cash Flow & Deficit</h4><p class="text-sm text-slate-600">This plan is <b>most capital-intensive</b>. Heavy upfront marketing creates a deep but short-lived financial hole. The <b>Maximum Cash Deficit is ${formatCurrency(metricsA.maxDeficit)}</b>, the minimum capital needed.</p></div><div><h4 class="font-bold">Risk & Reward</h4><p class="text-sm text-slate-600">Highest risk, highest reward. The steeper diminishing returns make this early push even more critical for securing a strong customer base before growth becomes much less efficient.</p></div>`;
+            document.getElementById('planA').innerHTML = getDashboardHTML('planA', 'Plan A: Aggressive Marketing', assumptionsA, timelineA, analysisA);
+
+            const assumptionsB = `<div><h5 class="font-bold mb-1">Marketing Strategy</h5><p>No extra marketing spend. Growth relies solely on the standard recurring budget of <b>$1,500</b> per month.</p></div>` + assumptionsTemplate;
+            const timelineB = `<div class="timeline-item"><p class="font-semibold">Month ${metricsB.monthlyProfitability}: Monthly Profitability</p></div><div class="timeline-item"><p class="font-semibold">Month ${metricsB.breakEven}: Cumulative Break-Even</p></div>`;
+            const analysisB = `<div><h4 class="font-bold">Cash Flow & Deficit</h4><p class="text-sm text-slate-600">This plan is <b>least capital-intensive</b>. Monthly losses are smaller, creating a shallower financial hole. The <b>Maximum Cash Deficit is ${formatCurrency(metricsB.maxDeficit)}</b>, making it safest to fund.</p></div><div><h4 class="font-bold">Risk & Reward</h4><p class="text-sm text-slate-600">Lowest risk, lowest reward. This plan is hit hardest by diminishing returns, as its slow growth means it operates in the least efficient growth stages for longer, severely capping its long-term potential.</p></div>`;
+            document.getElementById('planB').innerHTML = getDashboardHTML('planB', 'Plan B: Organic Growth', assumptionsB, timelineB, analysisB);
+
+            const assumptionsC = `<div><h5 class="font-bold mb-1">Marketing Strategy</h5><p>A moderate initial spend of <b>$15,000</b> to acquire <b>600</b> additional customers:<ul class="list-disc list-inside ml-4 mt-1"><li>Month 1: $5k for 200</li><li>Month 3: $5k for 200</li><li>Month 4: $2.5k for 100</li><li>Month 5: $2.5k for 100</li></ul></p></div>` + assumptionsTemplate;
+            const timelineC = `<div class="timeline-item"><p class="font-semibold">Months 1-5: Moderate Marketing</p><p class="text-sm text-slate-500">$15k extra spend provides a solid boost.</p></div><div class="timeline-item"><p class="font-semibold">Month ${metricsC.monthlyProfitability}: Monthly Profitability</p></div><div class="timeline-item"><p class="font-semibold">Month ${metricsC.breakEven}: Cumulative Break-Even</p></div>`;
+            const analysisC = `<div><h4 class="font-bold">Cash Flow & Deficit</h4><p class="text-sm text-slate-600">A balanced approach. The <b>Maximum Cash Deficit of ${formatCurrency(metricsC.maxDeficit)}</b> is a middle ground, making it more manageable than Plan A but requiring more capital than Plan B.</p></div><div><h4 class="font-bold">Risk & Reward</h4><p class="text-sm text-slate-600">A moderate risk, strong reward profile. It uses targeted spending to push past the initial growth phase, achieving strong results without the extreme capital risk of Plan A.</p></div>`;
+            document.getElementById('planC').innerHTML = getDashboardHTML('planC', 'Plan C: Moderate Marketing', assumptionsC, timelineC, analysisC);
+            
+            document.getElementById('comparison').innerHTML = `
+                <header class="text-center mb-10"><h2 class="text-3xl font-extrabold text-slate-900">Plan Comparison</h1></header>
+                 <div class="analysis-section mb-8"><h3 class="text-xl font-bold mb-4">Strategic Choices & Trade-offs</h3><p class="text-slate-600 text-sm">Each plan represents a distinct strategic choice about how to deploy capital and manage risk. Plan A is a "blitzscaling" approach, front-loading investment to capture the market quickly. Plan B is a conservative "bootstrapped" approach, prioritizing capital preservation over speed. Plan C is a "balanced growth" strategy, making targeted investments to accelerate growth without taking on excessive risk.</p></div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">3-Year Profit Share</h3><canvas id="comparison-profit-share-chart"></canvas></div>
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">Return on Capital (Profit vs. Deficit)</h3><canvas id="comparison-return-capital-chart"></canvas></div>
+                </div>
+                <div class="analysis-section mb-8"><h3 class="text-xl font-bold mb-4 text-center">Key Metrics Head-to-Head</h3><div class="overflow-x-auto"><table class="min-w-full">
+                    <thead><tr class="border-b border-slate-200"><th class="py-2 text-left font-semibold">Metric</th><th class="py-2 text-center font-semibold text-blue-600">Plan A</th><th class="py-2 text-center font-semibold text-green-600">Plan B</th><th class="py-2 text-center font-semibold text-orange-600">Plan C</th></tr></thead>
+                    <tbody>
+                        <tr class="border-b border-slate-100"><td class="py-3">Total Net Profit</td><td class="py-3 text-center font-medium">${formatCurrency(metricsA.netProfit)}</td><td class="py-3 text-center font-medium">${formatCurrency(metricsB.netProfit)}</td><td class="py-3 text-center font-medium">${formatCurrency(metricsC.netProfit)}</td></tr>
+                        <tr class="border-b border-slate-100"><td class="py-3">Max Cash Deficit</td><td class="py-3 text-center font-medium">${formatCurrency(metricsA.maxDeficit)}</td><td class="py-3 text-center font-medium">${formatCurrency(metricsB.maxDeficit)}</td><td class="py-3 text-center font-medium">${formatCurrency(metricsC.maxDeficit)}</td></tr>
+                        <tr class="border-b border-slate-100"><td class="py-3">Break-Even Point</td><td class="py-3 text-center font-medium">Month ${metricsA.breakEven}</td><td class="py-3 text-center font-medium">Month ${metricsB.breakEven}</td><td class="py-3 text-center font-medium">Month ${metricsC.breakEven}</td></tr>
+                        <tr><td class="py-3">3-Year ROI</td><td class="py-3 text-center font-medium">${formatPercent(metricsA.roi)}</td><td class="py-3 text-center font-medium">${formatPercent(metricsB.roi)}</td><td class="py-3 text-center font-medium">${formatPercent(metricsC.roi)}</td></tr>
+                    </tbody>
+                </table></div></div>
+                <div class="analysis-section mb-8">
+                    <h3 class="text-xl font-bold mb-4">Analysis: Maximum Cash Deficit & The "Cost of Growth"</h3>
+                    <p class="text-slate-600 text-sm">The "Maximum Cash Deficit" is the most critical number for determining a plan's feasibility. It represents the lowest point of the company's cash balance—the biggest financial "hole" the business digs before becoming consistently profitable. This dictates the <b>minimum amount of starting capital required</b> to launch a plan and survive the initial loss-making phase without running out of money.
+                    </p>
+                    <ul class="list-disc list-inside mt-3 space-y-2 text-slate-600 text-sm">
+                        <li><b>Plan B is the most "capital-light"</b> (${formatCurrency(metricsB.maxDeficit)}). It is the cheapest to launch because its monthly losses are small and manageable. However, this safety comes at the cost of a long, slow journey to profitability.</li>
+                        <li><b>Plan A is the most "capital-intensive"</b> (${formatCurrency(metricsA.maxDeficit)}). It requires the most upfront cash to absorb its massive, early marketing expenses. This is a high-risk strategy that "buys" speed, reaching profitability much faster.</li>
+                        <li><b>Plan C offers a strategic balance</b>. It requires more capital than the "safe" plan but significantly less than the "aggressive" one, providing a powerful return for its moderate risk profile.</li>
+                    </ul>
+                </div>
+                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">Customer Growth Trajectory</h3><canvas id="comparison-customer-chart"></canvas></div>
+                    <div class="chart-container"><h3 class="text-xl font-bold mb-4">Cumulative Profit Trajectory</h3><canvas id="comparison-cumulative-profit-chart"></canvas></div>
+                </div>
+                <div class="analysis-section"><h3 class="text-xl font-bold mb-4">Strategic Recommendation</h3><p class="text-slate-600">The new assumption of diminishing returns makes the early marketing spend of Plans A and C even more valuable. By acquiring customers before growth becomes less efficient, they build a lasting advantage.<br><br><b>Plan A (Aggressive)</b> is for ventures with strong investor backing (~${formatCurrency(Math.abs(metricsA.maxDeficit))}) and high confidence in their marketing effectiveness.<br><br><b>Plan B (Organic)</b> is the safest path for bootstrapped businesses (~${formatCurrency(Math.abs(metricsB.maxDeficit))}), but its long-term potential is now severely limited by the new growth constraints.<br><br><b>Plan C (Moderate)</b> now emerges as an even more compelling strategy. It smartly invests (~${formatCurrency(Math.abs(metricsC.maxDeficit))}) to bypass the worst of the diminishing returns without the extreme capital risk of Plan A, making it a powerful, well-rounded strategy.</p></div>`;
+        }
+
+        function setupNavigation() {
+            document.getElementById('main-nav').addEventListener('click', (e) => {
+                if (e.target.matches('.nav-link')) {
+                    const pageId = e.target.getAttribute('data-page');
+                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                    e.target.classList.add('active');
+                    document.querySelectorAll('main').forEach(p => p.classList.add('hidden-page'));
+                    document.getElementById(pageId).classList.remove('hidden-page');
+                    
+                    if (pageId === 'planA') { populateDashboard('planA', processedDataA); renderPlanCharts('planA', processedDataA); }
+                    if (pageId === 'planB') { populateDashboard('planB', processedDataB); renderPlanCharts('planB', processedDataB); }
+                    if (pageId === 'planC') { populateDashboard('planC', processedDataC); renderPlanCharts('planC', processedDataC); }
+                    if (pageId === 'comparison') {
+                        destroyCharts(charts.comparison);
+                        charts.comparison = {};
+                        const labels = processedDataA.slice(1).map(d=>`M${d.month}`);
+                        const commonOptions = { responsive: true, maintainAspectRatio: false };
+                        const doughnutOptions = {...commonOptions, plugins: { legend: { position: 'top' } }};
+                        const metricsA = getMetrics(processedDataA), metricsB = getMetrics(processedDataB), metricsC = getMetrics(processedDataC);
+                        
+                        charts.comparison.profitShare = new Chart(document.getElementById('comparison-profit-share-chart').getContext('2d'), { type: 'doughnut', data: { labels: ['Plan A', 'Plan B', 'Plan C'], datasets: [{ data: [metricsA.netProfit, metricsB.netProfit, metricsC.netProfit], backgroundColor: ['#3b82f6', '#16a34a', '#f97316'] }] }, options: doughnutOptions});
+                        charts.comparison.returnCapital = new Chart(document.getElementById('comparison-return-capital-chart').getContext('2d'), { type: 'bar', data: { labels: ['Plan A', 'Plan B', 'Plan C'], datasets: [{ label: 'Total Profit', data: [metricsA.netProfit, metricsB.netProfit, metricsC.netProfit], backgroundColor: '#a78bfa'}, { label: 'Required Capital', data: [Math.abs(metricsA.maxDeficit), Math.abs(metricsB.maxDeficit), Math.abs(metricsC.maxDeficit)], backgroundColor: '#fb923c'}]}, options: {...commonOptions, scales: {y: {ticks: {callback:v=>formatCurrency(v)}}}}});
+
+                        charts.comparison.customer = new Chart(document.getElementById('comparison-customer-chart').getContext('2d'), { type: 'line', data: { labels, datasets: [ {label:'Plan A', data: processedDataA.slice(1).map(d=>d.customers), borderColor: '#3b82f6', fill: false, tension: 0.1}, {label:'Plan B', data: processedDataB.slice(1).map(d=>d.customers), borderColor: '#16a34a', fill: false, tension: 0.1}, {label:'Plan C', data: processedDataC.slice(1).map(d=>d.customers), borderColor: '#f97316', fill: false, tension: 0.1} ]}, options: commonOptions });
+                        charts.comparison.cumulativeProfit = new Chart(document.getElementById('comparison-cumulative-profit-chart').getContext('2d'), { type: 'line', data: { labels, datasets: [ {label:'Plan A', data: processedDataA.slice(1).map(d=>d.cumulativeProfit), borderColor: '#3b82f6', fill: false, tension: 0.1}, {label:'Plan B', data: processedDataB.slice(1).map(d=>d.cumulativeProfit), borderColor: '#16a34a', fill: false, tension: 0.1}, {label:'Plan C', data: processedDataC.slice(1).map(d=>d.cumulativeProfit), borderColor: '#f97316', fill: false, tension: 0.1} ]}, options: {...commonOptions, scales: {y: {ticks: {callback: v=>formatCurrency(v)}}}}});
+                    }
+                }
+            });
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            processedDataA = calculateFinancials(generateFullData(financialDataA_raw));
+            processedDataB = calculateFinancials(generateFullData(financialDataB_raw));
+            processedDataC = calculateFinancials(generateFullData(financialDataC_raw));
+            
+            createPageHTML();
+            setupNavigation();
+            
+            document.querySelector('.nav-link[data-page="planA"]').click();
+        });
+    </script>
+</body>
+</html>
